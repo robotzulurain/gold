@@ -1,16 +1,13 @@
 from pathlib import Path
 import os
-import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Get secret & debug from env (sane defaults for local dev)
+# Environment-controlled settings
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key")
-DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("1", "true", "yes")
-
+DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("1","true","yes")
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost 127.0.0.1").split()
 
-# Apps
 INSTALLED_APPS = [
     "corsheaders",
     "django.contrib.admin",
@@ -24,7 +21,6 @@ INSTALLED_APPS = [
     "amr_reports",
 ]
 
-# Middleware - corsheaders MUST be before CommonMiddleware
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -57,14 +53,17 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "amr_project.wsgi.application"
 
-# Database: prefer DATABASE_URL, fallback to sqlite
+# Database: prefer DATABASE_URL, fallback to sqlite (dj_database_url optionally used later)
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL:
-    DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
+    try:
+        import dj_database_url
+        DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
+    except Exception:
+        # if dj_database_url isn't installed yet, fall back to sqlite for now
+        DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
 else:
-    DATABASES = {
-        "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}
-    }
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
 
 AUTH_PASSWORD_VALIDATORS = []
 
@@ -73,13 +72,11 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-# Static files
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static", BASE_DIR / "public"]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# Django REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.TokenAuthentication",
@@ -88,17 +85,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
 }
 
-# CORS
+# CORS - development-friendly defaults
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
-# allow env override
-NETLIFY_ORIGIN = os.environ.get("REACT_APP_NETLIFY_ORIGIN")
-if NETLIFY_ORIGIN:
-    CORS_ALLOWED_ORIGINS.append(NETLIFY_ORIGIN)
-
-# Helpful defaults for local dev
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
